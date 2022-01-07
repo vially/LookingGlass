@@ -88,6 +88,8 @@ target_link_libraries(looking-glass-host
 
 if(WIN32)
   set_target_properties(looking-glass-host PROPERTIES LINK_FLAGS "-Wl,--gc-sections -Wl,--nxcompat")
+elseif(APPLE)
+  set_target_properties(looking-glass-host PROPERTIES LINK_FLAGS "-Wl")
 else()
   set_target_properties(looking-glass-host PROPERTIES LINK_FLAGS "-Wl,--gc-sections -z noexecstack")
 endif()

@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.0)
 project(lg_common_platform LANGUAGES C)
 
-if (UNIX)
+if (APPLE)
+  add_subdirectory("macos")
+elseif (UNIX)
   add_subdirectory("linux")
 elseif(WIN32)
   add_subdirectory("windows")

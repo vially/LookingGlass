@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.0)
 project(platform LANGUAGES C)
 
-if (UNIX)
+if (APPLE)
+  set(PLATFORM "macOS")
+elseif (UNIX)
   set(PLATFORM "Linux")
 elseif(WIN32)
   set(PLATFORM "Windows")

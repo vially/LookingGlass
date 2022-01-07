@@ -36,12 +36,13 @@ int valloc_sprintf(char ** str, const char * format, va_list ap)
   va_list ap1;
   va_copy(ap1, ap);
 
+  // TOOD(vially): Find a proper fix for macOS
   // for some reason some versions of GCC warn about format being NULL when any
   // kind of optimization is enabled, this is a false positive.
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wformat-truncation"
+  //#pragma GCC diagnostic push
+  //#pragma GCC diagnostic ignored "-Wformat-truncation"
   const int len = vsnprintf(*str, 0, format, ap1);
-  #pragma GCC diagnostic pop
+  //#pragma GCC diagnostic pop
 
   va_end(ap1);
 
