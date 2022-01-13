@@ -56,7 +56,7 @@ struct LG_OverlayOps
    * returns the number of rects written to `windowRects`, or -1 if there is not
    * enough room left.
    */
-  int (*render)(void * udata, bool interactive, struct Rect * windowRects,
+  int (*render)(void * udata, bool interactive, struct LGRect * windowRects,
       int maxRects);
 
   /* TODO: add load/save settings capabillity */

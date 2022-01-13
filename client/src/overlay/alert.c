@@ -41,7 +41,7 @@ static const uint32_t colours[] =
   0x0000FF  // LG_ALERT_ERROR
 };
 
-static int alert_render(void * udata, bool interactive, struct Rect * windowRects,
+static int alert_render(void * udata, bool interactive, struct LGRect * windowRects,
     int maxRects)
 {
   if (!g_state.alertShow)

@@ -53,7 +53,7 @@ void swapWithDamageDisable(struct SwapWithDamageData * data)
 }
 
 void swapWithDamage(struct SwapWithDamageData * data, EGLDisplay display, EGLSurface surface,
-    const struct Rect * damage, int count)
+    const struct LGRect * damage, int count)
 {
   if (!data->func || !count)
   {

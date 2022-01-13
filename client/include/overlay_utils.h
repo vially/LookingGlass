@@ -27,7 +27,7 @@
 
 typedef struct ImVec2 ImVec2;
 
-void overlayGetImGuiRect(struct Rect * rect);
+void overlayGetImGuiRect(struct LGRect * rect);
 ImVec2 * overlayGetScreenSize(void);
 void overlayTextURL(const char * url, const char * text);
 void overlayTextMaybeURL(const char * text, bool wrapped);

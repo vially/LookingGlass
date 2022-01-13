@@ -209,7 +209,7 @@ inline static void matrixMultiply(const double matrix[6], double * nx, double * 
   *ny = matrix[1] * x + matrix[3] * y + matrix[5];
 }
 
-struct Rect egl_desktopToScreen(const double matrix[6], const struct FrameDamageRect * rect)
+struct LGRect egl_desktopToScreen(const double matrix[6], const struct FrameDamageRect * rect)
 {
   double x1, y1, x2, y2;
   matrixMultiply(matrix, &x1, &y1, rect->x, rect->y);
@@ -217,7 +217,7 @@ struct Rect egl_desktopToScreen(const double matrix[6], const struct FrameDamage
 
   int x3 = min(x1, x2);
   int y3 = min(y1, y2);
-  return (struct Rect) {
+  return (struct LGRect) {
     .x = x3,
     .y = y3,
     .w = ceil(max(x1, x2)) - x3,
@@ -243,7 +243,7 @@ void egl_screenToDesktopMatrix(double matrix[6], int frameWidth, int frameHeight
 }
 
 bool egl_screenToDesktop(struct FrameDamageRect * output, const double matrix[6],
-    const struct Rect * rect, int width, int height)
+    const struct LGRect * rect, int width, int height)
 {
   double x1, y1, x2, y2;
   matrixMultiply(matrix, &x1, &y1, rect->x - 1, rect->y - 1);

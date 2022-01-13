@@ -62,7 +62,7 @@ static void fps_free(void * udata)
 {
 }
 
-static int fps_render(void * udata, bool interactive, struct Rect * windowRects,
+static int fps_render(void * udata, bool interactive, struct LGRect * windowRects,
     int maxRects)
 {
   if (!showFPS)

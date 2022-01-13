@@ -75,7 +75,7 @@ bool app_getProp(LG_DSProperty prop, void * ret);
 #ifdef ENABLE_EGL
 EGLDisplay app_getEGLDisplay(void);
 EGLNativeWindowType app_getEGLNativeWindow(void);
-void app_eglSwapBuffers(EGLDisplay display, EGLSurface surface, const struct Rect * damage, int count);
+void app_eglSwapBuffers(EGLDisplay display, EGLSurface surface, const struct LGRect * damage, int count);
 #endif
 
 #ifdef ENABLE_OPENGL
@@ -98,7 +98,7 @@ bool app_overlayNeedsRender(void);
  *    0 for no overlay
  *   >0 number of rects written into rects
  */
-int app_renderOverlay(struct Rect * rects, int maxRects);
+int app_renderOverlay(struct LGRect * rects, int maxRects);
 
 void app_freeOverlays(void);
 

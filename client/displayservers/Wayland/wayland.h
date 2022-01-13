@@ -149,7 +149,7 @@ struct WaylandDSState
   struct wl_cursor_theme * cursorTheme;
   struct wl_buffer       * cursorSquareBuffer;
   struct wl_surface      * cursors[LG_POINTER_COUNT];
-  struct Point             cursorHot[LG_POINTER_COUNT];
+  struct LGPoint           cursorHot[LG_POINTER_COUNT];
   LG_DSPointer             cursorId;
   struct wl_surface      * cursor;
   int                      cursorHotX;
@@ -248,7 +248,7 @@ void waylandCursorScaleChange(void);
 #if defined(ENABLE_EGL) || defined(ENABLE_OPENGL)
 bool waylandEGLInit(int w, int h);
 EGLDisplay waylandGetEGLDisplay(void);
-void waylandEGLSwapBuffers(EGLDisplay display, EGLSurface surface, const struct Rect * damage, int count);
+void waylandEGLSwapBuffers(EGLDisplay display, EGLSurface surface, const struct LGRect * damage, int count);
 #endif
 
 #ifdef ENABLE_EGL

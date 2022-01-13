@@ -84,7 +84,7 @@ struct X11DSState
   bool focused;
   bool fullscreen;
 
-  struct Rect   rect;
+  struct LGRect rect;
   struct Border border;
 
   Cursor cursors[LG_POINTER_COUNT];

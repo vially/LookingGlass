@@ -135,4 +135,4 @@ void egl_textureSetFilterRes(PostProcessHandle * handle,
 
 void egl_textureInvalidate(EGL_Texture * texture);
 
-void egl_textureGetFinalSize(EGL_Texture * texture, struct Rect * rect);
+void egl_textureGetFinalSize(EGL_Texture * texture, struct LGRect * rect);

@@ -29,7 +29,7 @@ typedef struct EGL_Cursor EGL_Cursor;
 
 struct CursorState {
   bool visible;
-  struct Rect rect;
+  struct LGRect rect;
 };
 
 bool egl_cursorInit(EGL_Cursor ** cursor);

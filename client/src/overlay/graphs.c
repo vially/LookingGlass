@@ -118,7 +118,7 @@ static bool rbCalcMetrics(int index, void * value_, void * udata_)
 }
 
 static int graphs_render(void * udata, bool interactive,
-    struct Rect * windowRects, int maxRects)
+    struct LGRect * windowRects, int maxRects)
 {
   if (!gs.show)
     return 0;

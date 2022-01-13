@@ -139,7 +139,7 @@ static void config_renderLGTab(void)
   }
 }
 
-static int config_render(void * udata, bool interactive, struct Rect * windowRects,
+static int config_render(void * udata, bool interactive, struct LGRect * windowRects,
     int maxRects)
 {
   if (!interactive)

@@ -142,7 +142,7 @@ struct LG_DisplayServerOps
   /* EGL support */
   EGLDisplay (*getEGLDisplay)(void);
   EGLNativeWindowType (*getEGLNativeWindow)(void);
-  void (*eglSwapBuffers)(EGLDisplay display, EGLSurface surface, const struct Rect * damage, int count);
+  void (*eglSwapBuffers)(EGLDisplay display, EGLSurface surface, const struct LGRect * damage, int count);
 #endif
 
 #ifdef ENABLE_OPENGL

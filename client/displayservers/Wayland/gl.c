@@ -70,7 +70,7 @@ EGLDisplay waylandGetEGLDisplay(void)
   return eglGetDisplay(native);
 }
 
-void waylandEGLSwapBuffers(EGLDisplay display, EGLSurface surface, const struct Rect * damage, int count)
+void waylandEGLSwapBuffers(EGLDisplay display, EGLSurface surface, const struct LGRect * damage, int count)
 {
   if (!wlWm.swapWithDamage.init)
   {

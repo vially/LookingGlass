@@ -36,6 +36,6 @@ struct SwapWithDamageData
 void swapWithDamageInit(struct SwapWithDamageData * data, EGLDisplay display);
 void swapWithDamageDisable(struct SwapWithDamageData * data);
 void swapWithDamage(struct SwapWithDamageData * data, EGLDisplay display, EGLSurface surface,
-    const struct Rect * damage, int count);
+    const struct LGRect * damage, int count);
 
 #endif

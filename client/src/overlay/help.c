@@ -36,7 +36,7 @@ static void help_free(void * udata)
 {
 }
 
-static int help_render(void * udata, bool interactive, struct Rect * windowRects,
+static int help_render(void * udata, bool interactive, struct LGRect * windowRects,
     int maxRects)
 {
   if (!g_state.escapeHelp)

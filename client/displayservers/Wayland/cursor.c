@@ -75,7 +75,7 @@ fail:
 }
 
 static bool loadThemedCursor(const char * name, struct wl_surface ** surface,
-    struct Point * hotspot)
+    struct LGPoint * hotspot)
 {
   struct wl_cursor * cursor = wl_cursor_theme_get_cursor(wlWm.cursorTheme, name);
   if (!cursor)
@@ -93,7 +93,7 @@ static bool loadThemedCursor(const char * name, struct wl_surface ** surface,
   wl_surface_set_buffer_scale(*surface, wlWm.cursorScale);
   wl_surface_commit(*surface);
 
-  *hotspot = (struct Point) {
+  *hotspot = (struct LGPoint) {
     .x = cursor->images[0]->hotspot_x,
     .y = cursor->images[0]->hotspot_y,
   };

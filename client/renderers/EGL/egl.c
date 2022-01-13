@@ -115,10 +115,10 @@ struct Inst
   unsigned int         desktopDamageIdx;
   LG_Lock              desktopDamageLock;
 
-  bool         hasBufferAge;
-  struct Rect  overlayHistory[DESKTOP_DAMAGE_COUNT][MAX_OVERLAY_RECTS + 1];
-  int          overlayHistoryCount[DESKTOP_DAMAGE_COUNT];
-  unsigned int overlayHistoryIdx;
+  bool          hasBufferAge;
+  struct LGRect overlayHistory[DESKTOP_DAMAGE_COUNT][MAX_OVERLAY_RECTS + 1];
+  int           overlayHistoryCount[DESKTOP_DAMAGE_COUNT];
+  unsigned int  overlayHistoryIdx;
 
   RingBuffer importTimings;
   GraphHandle importGraph;
@@ -1011,7 +1011,7 @@ static bool egl_render(LG_Renderer * renderer, LG_RendererRotate rotate,
     {
       int idx   = IDX_AGO(this->overlayHistoryIdx, i, DESKTOP_DAMAGE_COUNT);
       int count = this->overlayHistoryCount[idx];
-      struct Rect * damage = this->overlayHistory[idx];
+      struct LGRect * damage = this->overlayHistory[idx];
 
       if (count < 0)
       {
@@ -1088,7 +1088,7 @@ static bool egl_render(LG_Renderer * renderer, LG_RendererRotate rotate,
   hasOverlay |= egl_damageRender(this->damage, rotate, newFrame ? desktopDamage : NULL);
   hasOverlay |= invalidateWindow;
 
-  struct Rect damage[KVMFR_MAX_DAMAGE_RECTS + MAX_OVERLAY_RECTS + 2];
+  struct LGRect damage[KVMFR_MAX_DAMAGE_RECTS + MAX_OVERLAY_RECTS + 2];
   int damageIdx = app_renderOverlay(damage, MAX_OVERLAY_RECTS);
 
   switch (damageIdx)
@@ -1115,7 +1115,7 @@ static bool egl_render(LG_Renderer * renderer, LG_RendererRotate rotate,
   else
   {
     if (damageIdx > 0)
-      memcpy(this->overlayHistory[overlayHistoryIdx], damage, damageIdx * sizeof(struct Rect));
+      memcpy(this->overlayHistory[overlayHistoryIdx], damage, damageIdx * sizeof(struct LGRect));
     this->overlayHistoryCount[overlayHistoryIdx] = damageIdx;
   }
 

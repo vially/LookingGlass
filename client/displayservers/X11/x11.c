@@ -1390,7 +1390,7 @@ static EGLNativeWindowType x11GetEGLNativeWindow(void)
 }
 
 static void x11EGLSwapBuffers(EGLDisplay display, EGLSurface surface,
-    const struct Rect * damage, int count)
+    const struct LGRect * damage, int count)
 {
   static struct SwapWithDamageData data = {0};
   if (!data.init)

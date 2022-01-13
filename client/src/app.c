@@ -587,7 +587,7 @@ EGLNativeWindowType app_getEGLNativeWindow(void)
   return g_state.ds->getEGLNativeWindow();
 }
 
-void app_eglSwapBuffers(EGLDisplay display, EGLSurface surface, const struct Rect * damage, int count)
+void app_eglSwapBuffers(EGLDisplay display, EGLSurface surface, const struct LGRect * damage, int count)
 {
   g_state.ds->eglSwapBuffers(display, surface, damage, count);
 }
@@ -695,7 +695,7 @@ struct Overlay
   const void * params;
   void * udata;
   int lastRectCount;
-  struct Rect lastRects[MAX_OVERLAY_RECTS];
+  struct LGRect lastRects[MAX_OVERLAY_RECTS];
 };
 
 void app_registerOverlay(const struct LG_OverlayOps * ops, const void * params)
@@ -727,7 +727,7 @@ void app_initOverlays(void)
   }
 }
 
-static inline void mergeRect(struct Rect * dest, const struct Rect * a, const struct Rect * b)
+static inline void mergeRect(struct LGRect * dest, const struct LGRect * a, const struct LGRect * b)
 {
   int x2 = max(a->x + a->w, b->x + b->w);
   int y2 = max(a->y + a->h, b->y + b->h);
@@ -787,12 +787,12 @@ bool app_overlayNeedsRender(void)
   return false;
 }
 
-int app_renderOverlay(struct Rect * rects, int maxRects)
+int app_renderOverlay(struct LGRect * rects, int maxRects)
 {
   int  totalRects  = 0;
   bool totalDamage = false;
   struct Overlay * overlay;
-  struct Rect buffer[MAX_OVERLAY_RECTS];
+  struct LGRect buffer[MAX_OVERLAY_RECTS];
 
   g_state.io->KeyCtrl  = g_state.modCtrl;
   g_state.io->KeyShift = g_state.modShift;
@@ -845,15 +845,15 @@ int app_renderOverlay(struct Rect * rects, int maxRects)
         mergeRect(rects + i, buffer + i, overlay->lastRects + i);
 
       // only one of the following memcpys will copy non-zero bytes.
-      memcpy(rects + i, buffer + i, (written - i) * sizeof(struct Rect));
-      memcpy(rects + i, overlay->lastRects + i, (overlay->lastRectCount - i) * sizeof(struct Rect));
+      memcpy(rects + i, buffer + i, (written - i) * sizeof(struct LGRect));
+      memcpy(rects + i, overlay->lastRects + i, (overlay->lastRectCount - i) * sizeof(struct LGRect));
 
       rects      += toAdd;
       totalRects += toAdd;
       maxRects   -= toAdd;
     }
 
-    memcpy(overlay->lastRects, buffer, sizeof(struct Rect) * written);
+    memcpy(overlay->lastRects, buffer, sizeof(struct LGRect) * written);
     overlay->lastRectCount = written;
   }
 

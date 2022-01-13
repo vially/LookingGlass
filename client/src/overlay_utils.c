@@ -26,7 +26,7 @@
 #include "cimgui.h"
 #include "main.h"
 
-void overlayGetImGuiRect(struct Rect * rect)
+void overlayGetImGuiRect(struct LGRect * rect)
 {
   ImVec2 size;
   ImVec2 pos;

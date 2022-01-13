@@ -82,14 +82,14 @@ struct AppState
   bool                 keyDown[KEY_MAX];
 
   bool                 haveSrcSize;
-  struct Point         windowPos;
+  struct LGPoint       windowPos;
   int                  windowW, windowH;
   int                  windowCX, windowCY;
   double               windowScale;
   LG_RendererRotate    rotate;
   bool                 focused;
   struct Border        border;
-  struct Point         srcSize;
+  struct LGPoint       srcSize;
   LG_RendererRect      dstRect;
   bool                 posInfoValid;
   bool                 alignToGuest;
@@ -280,7 +280,7 @@ struct CursorState
   struct CursorInfo guest;
 
   /* the projected position after move, for app_handleMouseBasic only */
-  struct Point projected;
+  struct LGPoint projected;
 };
 
 // forwards

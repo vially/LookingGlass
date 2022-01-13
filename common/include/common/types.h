@@ -23,7 +23,7 @@
 
 #include <stdint.h>
 
-struct Point
+struct LGPoint
 {
   int x, y;
 };
@@ -33,7 +33,7 @@ struct DoublePoint
   double x, y;
 };
 
-struct Rect
+struct LGRect
 {
   int x, y, w, h;
 };
