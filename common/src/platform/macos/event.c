@@ -19,22 +19,15 @@
  */
 
 #include "common/event.h"
-
 #include "common/debug.h"
 
-#include <stdlib.h>
-#include <pthread.h>
-#include <errno.h>
-#include <stdatomic.h>
+#include <dispatch/dispatch.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 struct LGEvent
 {
-  pthread_mutex_t mutex;
-  pthread_cond_t  cond;
-  atomic_int      waiting;
-  atomic_bool     signaled;
-  bool            autoReset;
+  dispatch_semaphore_t semaphore;
 };
 
 LGEvent * lgCreateEvent(bool autoReset, unsigned int msSpinTime)
@@ -46,158 +39,40 @@ LGEvent * lgCreateEvent(bool autoReset, unsigned int msSpinTime)
     return NULL;
   }
 
-  if (pthread_mutex_init(&handle->mutex, NULL) != 0)
+  dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+  if (!semaphore)
   {
-    DEBUG_ERROR("Failed to create the mutex");
-    free(handle);
+    DEBUG_ERROR("Failed to create semaphore");
     return NULL;
   }
 
-  pthread_condattr_t cattr;
-  pthread_condattr_init(&cattr);
-
-  // TODO(vially): Find a solution for CLOCK_MONOTONIC on macOS
-  /*
-  if (pthread_condattr_setclock(&cattr, CLOCK_MONOTONIC) != 0)
-  {
-    DEBUG_ERROR("Failed to set the condition clock to realtime");
-    pthread_mutex_destroy(&handle->mutex);
-    free(handle);
-    return NULL;
-  }
-  */
-
-  if (pthread_cond_init(&handle->cond, &cattr) != 0)
-  {
-    pthread_mutex_destroy(&handle->mutex);
-    free(handle);
-    return NULL;
-  }
-
-  handle->autoReset = autoReset;
+  handle->semaphore = semaphore;
   return handle;
 }
 
 void lgFreeEvent(LGEvent * handle)
 {
   DEBUG_ASSERT(handle);
-
-  if (atomic_load_explicit(&handle->waiting, memory_order_acquire) != 0)
-    DEBUG_ERROR("BUG: Freeing an event that still has threads waiting on it");
-
-  pthread_cond_destroy (&handle->cond );
-  pthread_mutex_destroy(&handle->mutex);
   free(handle);
-}
-
-bool lgWaitEventAbs(LGEvent * handle, struct timespec * ts)
-{
-  DEBUG_ASSERT(handle);
-
-  bool ret   = true;
-  int  res;
-
-  if (pthread_mutex_lock(&handle->mutex) != 0)
-  {
-    DEBUG_ERROR("Failed to lock the mutex");
-    return false;
-  }
-
-  atomic_fetch_add_explicit(&handle->waiting, 1, memory_order_release);
-  while(ret && !atomic_load_explicit(&handle->signaled, memory_order_acquire))
-  {
-    if (!ts)
-    {
-      if ((res = pthread_cond_wait(&handle->cond, &handle->mutex)) != 0)
-      {
-        DEBUG_ERROR("Failed to wait on the condition (err: %d)", res);
-        ret = false;
-      }
-    }
-    else
-    {
-      switch((res = pthread_cond_timedwait(&handle->cond, &handle->mutex, ts)))
-      {
-        case 0:
-          break;
-
-        case ETIMEDOUT:
-          ret = false;
-          break;
-
-        default:
-          ret = false;
-          DEBUG_ERROR("Timed wait failed (err: %d)", res);
-          break;
-      }
-    }
-  }
-
-  atomic_fetch_sub_explicit(&handle->waiting, 1, memory_order_release);
-  if (pthread_mutex_unlock(&handle->mutex) != 0)
-  {
-    DEBUG_ERROR("Failed to unlock the mutex");
-    return false;
-  }
-
-  if (ret && handle->autoReset)
-    atomic_store_explicit(&handle->signaled, false, memory_order_release);
-
-  return ret;
-}
-
-bool lgWaitEventNS(LGEvent * handle, unsigned int timeout)
-{
-  if (timeout == TIMEOUT_INFINITE)
-    return lgWaitEventAbs(handle, NULL);
-
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  uint64_t nsec = ts.tv_nsec + timeout;
-  if(nsec > 1000000000UL)
-  {
-    ts.tv_nsec = nsec - 1000000000UL;
-    ++ts.tv_sec;
-  }
-  else
-    ts.tv_nsec = nsec;
-
-  return lgWaitEventAbs(handle, &ts);
 }
 
 bool lgWaitEvent(LGEvent * handle, unsigned int timeout)
 {
-  if (timeout == TIMEOUT_INFINITE)
-    return lgWaitEventAbs(handle, NULL);
+  DEBUG_ASSERT(handle);
 
-  return lgWaitEventNS(handle, timeout * 1000000U);
+  dispatch_time_t to =
+      (timeout == TIMEOUT_INFINITE)
+          ? DISPATCH_TIME_FOREVER
+          : dispatch_time(DISPATCH_TIME_NOW, timeout * 1000000U);
+
+  return dispatch_semaphore_wait(handle->semaphore, to) == 0;
 }
 
 bool lgSignalEvent(LGEvent * handle)
 {
   DEBUG_ASSERT(handle);
 
-  if (pthread_mutex_lock(&handle->mutex) != 0)
-  {
-    DEBUG_ERROR("Failed to lock the mutex");
-    return false;
-  }
-
-  const bool signaled = atomic_exchange_explicit(&handle->signaled, true,
-      memory_order_release);
-
-  if (!signaled)
-    if (pthread_cond_broadcast(&handle->cond) != 0)
-    {
-      DEBUG_ERROR("Failed to signal the condition");
-      return false;
-    }
-
-  if (pthread_mutex_unlock(&handle->mutex) != 0)
-  {
-    DEBUG_ERROR("Failed to unlock the mutex");
-    return false;
-  }
+  dispatch_semaphore_signal(handle->semaphore);
 
   return true;
 }
@@ -205,5 +80,15 @@ bool lgSignalEvent(LGEvent * handle)
 bool lgResetEvent(LGEvent * handle)
 {
   DEBUG_ASSERT(handle);
-  return atomic_exchange_explicit(&handle->signaled, false, memory_order_release);
+
+  dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+  if (!semaphore)
+  {
+    DEBUG_ERROR("Failed to recreate semaphore");
+    return false;
+  }
+
+  handle->semaphore = semaphore;
+
+  return true;
 }
