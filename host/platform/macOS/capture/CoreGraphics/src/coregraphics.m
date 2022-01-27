@@ -67,6 +67,15 @@ static bool coregraphics_create(CaptureGetPointerBuffer  getPointerBufferFn,
                                 CapturePostPointerBuffer postPointerBufferFn)
 {
   DEBUG_ASSERT(!this);
+
+  bool hasScreenCaptureAccess = CGPreflightScreenCaptureAccess();
+  if (!hasScreenCaptureAccess)
+  {
+    DEBUG_ERROR("Screen capture access is not granted");
+    CGRequestScreenCaptureAccess();
+    return false;
+  }
+
   this                  = calloc(1, sizeof(*this));
   this->streamStopEvent = lgCreateEvent(false, 0);
 
@@ -156,6 +165,11 @@ static bool coregraphics_init(void)
         IOSurfaceRef frameSurface, CGDisplayStreamUpdateRef updateRef) {
         display_stream_update(status, displayTime, frameSurface, updateRef);
       });
+
+  if (!this->stream) {
+    DEBUG_ERROR("Unable to create display stream. Make sure the screen recording permission has been granted");
+    return false;
+  }
 
   return !CGDisplayStreamStart(this->stream);
 }
