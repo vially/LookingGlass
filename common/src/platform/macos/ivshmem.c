@@ -19,125 +19,130 @@
  */
 
 #include "common/ivshmem.h"
-
-#include <dirent.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-
 #include "common/array.h"
 #include "common/debug.h"
 #include "common/option.h"
-#include "common/sysinfo.h"
 #include "common/stringutils.h"
+#include "common/sysinfo.h"
+
+#include <IOKit/IOKitLib.h>
+#include <IOKit/IOReturn.h>
+#include <IOKit/hidsystem/IOHIDShared.h>
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 struct IVSHMEMInfo
 {
-  int  devFd;
-  int  size;
-  bool hasDMA;
+  io_connect_t      connection;
+  mach_vm_address_t address;
+  mach_vm_size_t    size;
 };
-
-static bool ivshmemDeviceValidator(struct Option * opt, const char ** error)
-{
-  // if it's not a kvmfr device, it must be a file on disk
-  if (strlen(opt->value.x_string) > 3 && memcmp(opt->value.x_string, "kvmfr", 5) != 0)
-  {
-    struct stat st;
-    if (stat(opt->value.x_string, &st) != 0)
-    {
-      *error = "Invalid path to the ivshmem file specified";
-      return false;
-    }
-    return true;
-  }
-
-  return true;
-}
-
-static StringList ivshmemDeviceGetValues(struct Option * option)
-{
-  StringList sl = stringlist_new(true);
-
-  DIR * d = opendir("/sys/class/kvmfr");
-  if (!d)
-    return sl;
-
-  struct dirent * dir;
-  while((dir = readdir(d)) != NULL)
-  {
-    if (dir->d_name[0] == '.')
-      continue;
-
-    char * devName;
-    alloc_sprintf(&devName, "/dev/%s", dir->d_name);
-    stringlist_push(sl, devName);
-  }
-
-  closedir(d);
-  return sl;
-}
 
 void ivshmemOptionsInit(void)
 {
+  // clang-format off
   struct Option options[] =
   {
     {
       .module         = "app",
-      .name           = "shmFile",
+      .name           = "dextIdentifier",
       .shortopt       = 'f',
-      .description    = "The path to the shared memory file, or the name of the kvmfr device to use, e.g. kvmfr0",
+      .description    = "The IOService name of the IVSHMEM macOS driver",
       .type           = OPTION_TYPE_STRING,
-      .value.x_string = "/dev/shm/looking-glass",
-      .validator      = ivshmemDeviceValidator,
-      .getValues      = ivshmemDeviceGetValues
+      .value.x_string = "IVSHMEMDriver"
     },
     {0}
   };
+  // clang-format on
 
   option_register(options);
 }
 
 bool ivshmemInit(struct IVSHMEM * dev)
 {
-  // FIXME: split code from ivshmemOpen
+  DEBUG_ASSERT(dev);
+
+  kern_return_t ret        = kIOReturnSuccess;
+  io_iterator_t iterator   = IO_OBJECT_NULL;
+  io_service_t  service    = IO_OBJECT_NULL;
+  io_connect_t  connection = IO_OBJECT_NULL;
+
+  dev->opaque = NULL;
+
+  const char * dextIdentifier = option_get_string("app", "dextIdentifier");
+  DEBUG_INFO("DEXT identifier  : %s", dextIdentifier);
+
+  ret = IOServiceGetMatchingServices(
+      kIOMainPortDefault, IOServiceNameMatching(dextIdentifier), &iterator);
+  if (ret != kIOReturnSuccess)
+  {
+    DEBUG_ERROR("Unable to find IOService for identifier: %s", dextIdentifier);
+    DEBUG_ERROR("%s", strerror(ret));
+    return false;
+  }
+
+  while ((service = IOIteratorNext(iterator)) != IO_OBJECT_NULL)
+  {
+    ret = IOServiceOpen(service, mach_task_self_, kIOHIDServerConnectType,
+                        &connection);
+    IOObjectRelease(service);
+
+    if (ret == kIOReturnSuccess)
+      break;
+
+    DEBUG_ERROR("Failed opening service: %s", dextIdentifier);
+    DEBUG_ERROR("%s", strerror(ret));
+  }
+  IOObjectRelease(iterator);
+
+  if (connection == IO_OBJECT_NULL)
+  {
+    DEBUG_ERROR("Failed opening service connection: %s", dextIdentifier);
+    return false;
+  }
+
+  struct IVSHMEMInfo * info = malloc(sizeof(*info));
+  info->connection          = connection;
+  info->address             = 0;
+  info->size                = 0;
+
+  dev->opaque = info;
+
   return true;
 }
 
 bool ivshmemOpen(struct IVSHMEM * dev)
 {
-  return ivshmemOpenDev(dev, option_get_string("app", "shmFile"));
+  return ivshmemOpenDev(dev, option_get_string("app", "dextIdentifier"));
 }
 
 bool ivshmemOpenDev(struct IVSHMEM * dev, const char * shmDevice)
 {
-  DEBUG_ASSERT(dev);
+  DEBUG_ASSERT(dev && dev->opaque);
 
-  unsigned int devSize;
-  int devFd = -1;
-  bool hasDMA = false;
+  struct IVSHMEMInfo * info = (struct IVSHMEMInfo *)dev->opaque;
 
-  dev->opaque = NULL;
+  kern_return_t ret = kIOReturnSuccess;
 
-  DEBUG_INFO("KVMFR Device     : %s", shmDevice);
+  ret = IOConnectMapMemory64(info->connection, 0, mach_task_self_,
+                             &info->address, &info->size, kIOMapAnywhere);
+  if (ret != kIOReturnSuccess)
+  {
+    DEBUG_ERROR("Failed to map the shared memory device: %s", shmDevice);
+    DEBUG_ERROR("%s", strerror(errno));
+    return false;
+  }
 
-  // TODO(vially): Implement memory mapping
-  void *map = NULL;
-  devSize = 0;
+  dev->size = info->size;
+  dev->mem  = (void *)info->address;
 
-  struct IVSHMEMInfo * info = malloc(sizeof(*info));
-  info->size   = devSize;
-  info->devFd  = devFd;
-  info->hasDMA = hasDMA;
-
-  dev->opaque = info;
-  dev->size   = devSize;
-  dev->mem    = map;
   return true;
 }
 
@@ -148,29 +153,49 @@ void ivshmemClose(struct IVSHMEM * dev)
   if (!dev->opaque)
     return;
 
-  struct IVSHMEMInfo * info =
-    (struct IVSHMEMInfo *)dev->opaque;
+  struct IVSHMEMInfo * info = (struct IVSHMEMInfo *)dev->opaque;
 
-  munmap(dev->mem, info->size);
-  close(info->devFd);
+  kern_return_t ret = kIOReturnSuccess;
 
-  free(info);
-  dev->mem    = NULL;
-  dev->size   = 0;
-  dev->opaque = NULL;
+  ret = IOConnectUnmapMemory64(info->connection, 0, mach_task_self_,
+                               info->address);
+  if (ret != kIOReturnSuccess)
+  {
+    DEBUG_ERROR("Failed to unmap the shared memory device");
+    DEBUG_ERROR("%s", strerror(errno));
+    return;
+  }
+
+  info->address = 0;
+  info->size    = 0;
+
+  dev->mem  = NULL;
+  dev->size = 0;
 }
 
 void ivshmemFree(struct IVSHMEM * dev)
 {
+  DEBUG_ASSERT(dev);
+
+  kern_return_t ret = kIOReturnSuccess;
+
+  if (!dev->opaque)
+    return;
+
   // FIXME: split code from ivshmemClose
+  struct IVSHMEMInfo * info = (struct IVSHMEMInfo *)dev->opaque;
+
+  ret = IOServiceClose(info->connection);
+  if (ret != kIOReturnSuccess)
+  {
+    DEBUG_ERROR("Failed closing service connection");
+  }
+
+  free(info);
+  dev->opaque = NULL;
 }
 
 bool ivshmemHasDMA(struct IVSHMEM * dev)
 {
-  DEBUG_ASSERT(dev && dev->opaque);
-
-  struct IVSHMEMInfo * info =
-    (struct IVSHMEMInfo *)dev->opaque;
-
-  return info->hasDMA;
+  return false;
 }

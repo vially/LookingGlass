@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.0)
 project(lg_common_platform_code LANGUAGES C)
 
+find_library(COREFOUNDATION CoreFoundation)
+find_library(IOKIT IOKit)
+
 include_directories(
 	${PROJECT_SOURCE_DIR}/include
 	${PROJECT_TOP}
@@ -20,6 +23,8 @@ add_library(lg_common_platform_code STATIC
 )
 
 target_link_libraries(lg_common_platform_code
+	${COREFOUNDATION}
+	${IOKIT}
 	lg_common
 	pthread
 )
