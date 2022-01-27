@@ -18,35 +18,36 @@
  * Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include "interface/capture.h"
-#include "interface/platform.h"
 #include "common/debug.h"
 #include "common/event.h"
 #include "common/stringutils.h"
+#include "interface/capture.h"
+#include "interface/platform.h"
+
 #include <pthread.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
+#import <Cocoa/Cocoa.h>
 #import <CoreGraphics/CGDisplayStream.h>
 #import <IOSurface/IOSurface.h>
-#import <Cocoa/Cocoa.h>
 
+struct coregraphics
+{
+  NSScreen * screen;
 
-struct coregraphics {
-	NSScreen *screen;
+  CGDisplayStreamRef stream;
+  LGEvent *          streamStopEvent;
+  IOSurfaceRef       current;
 
-	CGDisplayStreamRef   stream;
-  LGEvent            * streamStopEvent;
-	IOSurfaceRef         current;
+  // TODO(vially): Investigate if this mutex is needed?
+  pthread_mutex_t mutex;
 
-	// TODO(vially): Investigate if this mutex is needed?
-	pthread_mutex_t mutex;
-
-  bool          stop;
-  bool          hasFormat;
-  bool          formatChanged;
-  int           width, height;
+  bool stop;
+  bool hasFormat;
+  bool formatChanged;
+  int  width, height;
 };
 
 static struct coregraphics * this = NULL;
@@ -62,10 +63,11 @@ static const char * coregraphics_getName(void)
   return "CoreGraphics";
 }
 
-static bool coregraphics_create(CaptureGetPointerBuffer getPointerBufferFn, CapturePostPointerBuffer postPointerBufferFn)
+static bool coregraphics_create(CaptureGetPointerBuffer  getPointerBufferFn,
+                                CapturePostPointerBuffer postPointerBufferFn)
 {
   DEBUG_ASSERT(!this);
-  this = calloc(1, sizeof(*this));
+  this                  = calloc(1, sizeof(*this));
   this->streamStopEvent = lgCreateEvent(false, 0);
 
   if (!this->streamStopEvent)
@@ -79,34 +81,37 @@ static bool coregraphics_create(CaptureGetPointerBuffer getPointerBufferFn, Capt
 }
 
 static inline void display_stream_update(CGDisplayStreamFrameStatus status,
-					 uint64_t display_time,
-					 IOSurfaceRef frame_surface,
-					 CGDisplayStreamUpdateRef update_ref)
+                                         uint64_t                 display_time,
+                                         IOSurfaceRef             frame_surface,
+                                         CGDisplayStreamUpdateRef update_ref)
 {
-	if (status == kCGDisplayStreamFrameStatusStopped) {
+  if (status == kCGDisplayStreamFrameStatusStopped)
+  {
     lgSignalEvent(this->streamStopEvent);
-		return;
-	}
+    return;
+  }
 
-	IOSurfaceRef prev_current = NULL;
+  IOSurfaceRef prev_current = NULL;
 
-	if (frame_surface && !pthread_mutex_lock(&this->mutex)) {
-		prev_current = this->current;
-		this->current = frame_surface;
-		CFRetain(this->current);
-		IOSurfaceIncrementUseCount(this->current);
+  if (frame_surface && !pthread_mutex_lock(&this->mutex))
+  {
+    prev_current  = this->current;
+    this->current = frame_surface;
+    CFRetain(this->current);
+    IOSurfaceIncrementUseCount(this->current);
 
-		pthread_mutex_unlock(&this->mutex);
-	}
+    pthread_mutex_unlock(&this->mutex);
+  }
 
-	if (prev_current) {
-		IOSurfaceDecrementUseCount(prev_current);
-		CFRelease(prev_current);
-	}
+  if (prev_current)
+  {
+    IOSurfaceDecrementUseCount(prev_current);
+    CFRelease(prev_current);
+  }
 
-	size_t dropped_frames = CGDisplayStreamUpdateGetDropCount(update_ref);
-	if (dropped_frames > 0)
-		DEBUG_INFO("CoreGraphics: Dropped %zu frames", dropped_frames);
+  size_t dropped_frames = CGDisplayStreamUpdateGetDropCount(update_ref);
+  if (dropped_frames > 0)
+    DEBUG_INFO("CoreGraphics: Dropped %zu frames", dropped_frames);
 }
 
 static bool coregraphics_init(void)
@@ -118,43 +123,40 @@ static bool coregraphics_init(void)
   lgResetEvent(this->streamStopEvent);
 
   if ([NSScreen screens].count == 0)
-  	return false;
+    return false;
 
   // TODO(vially): Improve display selection logic
   unsigned display = 0;
-  this->screen = [[NSScreen screens][display] retain];
-  
+  this->screen     = [[NSScreen screens][display] retain];
+
   NSRect frame = [this->screen convertRectToBacking:this->screen.frame];
-  this->width = frame.size.width;
+  this->width  = frame.size.width;
   this->height = frame.size.height;
 
-  NSNumber *screen_num = this->screen.deviceDescription[@"NSScreenNumber"];
+  NSNumber * screen_num     = this->screen.deviceDescription[@"NSScreenNumber"];
   CGDirectDisplayID disp_id = (CGDirectDisplayID)screen_num.intValue;
 
-  NSDictionary *rect_dict =
-  	CFBridgingRelease(CGRectCreateDictionaryRepresentation(
-  		CGRectMake(0, 0, this->screen.frame.size.width,
-  				this->screen.frame.size.height)));
-  
+  NSDictionary * rect_dict =
+      CFBridgingRelease(CGRectCreateDictionaryRepresentation(
+          CGRectMake(0, 0, this->screen.frame.size.width,
+                     this->screen.frame.size.height)));
+
   CFBooleanRef show_cursor_cf = kCFBooleanTrue;
-  
-  NSDictionary *dict = @{
-  	(__bridge NSString *)kCGDisplayStreamSourceRect: rect_dict,
-  	(__bridge NSString *)kCGDisplayStreamQueueDepth: @5,
-  	(__bridge NSString *)
-  	kCGDisplayStreamShowCursor: (id)show_cursor_cf,
+
+  NSDictionary * dict = @{
+    (__bridge NSString *)kCGDisplayStreamSourceRect : rect_dict,
+    (__bridge NSString *)kCGDisplayStreamQueueDepth : @5,
+    (__bridge NSString *)kCGDisplayStreamShowCursor : (id)show_cursor_cf,
   };
-  
+
   this->stream = CGDisplayStreamCreateWithDispatchQueue(
-  	disp_id, this->width, this->height, 'BGRA',
-  	(__bridge CFDictionaryRef)dict,
-  	dispatch_queue_create(NULL, NULL),
-  	^(CGDisplayStreamFrameStatus status, uint64_t displayTime,
-  		IOSurfaceRef frameSurface,
-  		CGDisplayStreamUpdateRef updateRef) {
-  		display_stream_update(status, displayTime, frameSurface, updateRef);
-  	});
-  
+      disp_id, this->width, this->height, 'BGRA',
+      (__bridge CFDictionaryRef)dict, dispatch_queue_create(NULL, NULL),
+      ^(CGDisplayStreamFrameStatus status, uint64_t displayTime,
+        IOSurfaceRef frameSurface, CGDisplayStreamUpdateRef updateRef) {
+        display_stream_update(status, displayTime, frameSurface, updateRef);
+      });
+
   return !CGDisplayStreamStart(this->stream);
 }
 
@@ -167,26 +169,30 @@ static void coregraphics_stop(void)
 
 static bool coregraphics_deinit(void)
 {
-	if (this->stream) {
-		CGDisplayStreamStop(this->stream);
-		lgWaitEvent(this->streamStopEvent, 1000);
-	}
+  if (this->stream)
+  {
+    CGDisplayStreamStop(this->stream);
+    lgWaitEvent(this->streamStopEvent, 1000);
+  }
 
-	if (this->current) {
-		IOSurfaceDecrementUseCount(this->current);
-		CFRelease(this->current);
-		this->current = NULL;
-	}
+  if (this->current)
+  {
+    IOSurfaceDecrementUseCount(this->current);
+    CFRelease(this->current);
+    this->current = NULL;
+  }
 
-	if (this->stream) {
-		CFRelease(this->stream);
-		this->stream = NULL;
-	}
+  if (this->stream)
+  {
+    CFRelease(this->stream);
+    this->stream = NULL;
+  }
 
-	if (this->screen) {
-		[this->screen release];
-		this->screen = nil;
-	}
+  if (this->screen)
+  {
+    [this->screen release];
+    this->screen = nil;
+  }
 
   // TODO(vially): implement me
   pthread_mutex_destroy(&this->mutex);
@@ -213,12 +219,12 @@ static CaptureResult coregraphics_capture(void)
 }
 
 static CaptureResult coregraphics_waitFrame(CaptureFrame * frame,
-    const size_t maxFrameSize)
+                                            const size_t   maxFrameSize)
 {
   if (this->stop)
     return CAPTURE_RESULT_REINIT;
 
-  const int bpp = 4;
+  const int          bpp       = 4;
   const unsigned int maxHeight = maxFrameSize / (this->width * bpp);
 
   frame->width      = this->width;
@@ -235,30 +241,33 @@ static CaptureResult coregraphics_waitFrame(CaptureFrame * frame,
   return CAPTURE_RESULT_OK;
 }
 
-static CaptureResult coregraphics_getFrame(FrameBuffer * frame,
-    const unsigned int height, int frameIndex)
+static CaptureResult coregraphics_getFrame(FrameBuffer *      frame,
+                                           const unsigned int height,
+                                           int                frameIndex)
 {
   if (this->stop || !this->current)
     return CAPTURE_RESULT_REINIT;
 
-  const int bpp = 4;
-  uint8_t *frameData = (uint8_t*)IOSurfaceGetBaseAddress(this->current);
+  const int bpp       = 4;
+  uint8_t * frameData = (uint8_t *)IOSurfaceGetBaseAddress(this->current);
   framebuffer_write(frame, frameData, height * this->width * bpp);
 
   return CAPTURE_RESULT_OK;
 }
 
+// clang-format off
 struct CaptureInterface Capture_CoreGraphics =
 {
-  .shortName       = "CoreGraphics",
-  .asyncCapture    = false,
-  .getName         = coregraphics_getName,
-  .create          = coregraphics_create,
-  .init            = coregraphics_init,
-  .stop            = coregraphics_stop,
-  .deinit          = coregraphics_deinit,
-  .free            = coregraphics_free,
-  .capture         = coregraphics_capture,
-  .waitFrame       = coregraphics_waitFrame,
-  .getFrame        = coregraphics_getFrame
+  .shortName    = "CoreGraphics",
+  .asyncCapture = false,
+  .getName      = coregraphics_getName,
+  .create       = coregraphics_create,
+  .init         = coregraphics_init,
+  .stop         = coregraphics_stop,
+  .deinit       = coregraphics_deinit,
+  .free         = coregraphics_free,
+  .capture      = coregraphics_capture,
+  .waitFrame    = coregraphics_waitFrame,
+  .getFrame     = coregraphics_getFrame
 };
+// clang-format on

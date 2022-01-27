@@ -24,20 +24,20 @@
 #include "common/stringutils.h"
 #include "common/thread.h"
 
-#include <stdlib.h>
-#include <string.h>
-#include <signal.h>
 #include <errno.h>
 #include <pwd.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 struct app
 {
   const char * executable;
-  char * dataPath;
+  char *       dataPath;
 };
 
-struct app app = { 0 };
+struct app app = {0};
 
 int main(int argc, char * argv[])
 {
@@ -103,12 +103,12 @@ KVMFROS os_getKVMFRType(void)
 
 const char * os_getOSName(void)
 {
-  //TODO
+  // TODO
   return NULL;
 }
 
 const uint8_t * os_getUUID(void)
 {
-  //TODO
+  // TODO
   return NULL;
 }

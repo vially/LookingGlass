@@ -1,0 +1,12 @@
+IndentWidth: 2
+BreakBeforeBraces: Allman
+BraceWrapping:
+  AfterCaseLabel: true
+  AfterClass: true
+  AfterStruct: true
+  AfterObjCDeclaration: true
+AllowShortFunctionsOnASingleLine: false
+IncludeBlocks: Preserve
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveDeclarations: true
+PointerAlignment: Middle
