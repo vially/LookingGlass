@@ -77,6 +77,8 @@ if(WIN32)
     platform/Windows/resource.rc
     ${SOURCES}
   )
+elseif(APPLE)
+  add_executable(looking-glass-host MACOSX_BUNDLE ${SOURCES})
 else()
   add_executable(looking-glass-host ${SOURCES})
 endif()
@@ -90,11 +92,14 @@ if(WIN32)
   set_target_properties(looking-glass-host PROPERTIES LINK_FLAGS "-Wl,--gc-sections -Wl,--nxcompat")
 elseif(APPLE)
   set_target_properties(looking-glass-host PROPERTIES LINK_FLAGS "-Wl")
+  set_target_properties(looking-glass-host PROPERTIES MACOSX_BUNDLE_BUNDLE_NAME "Looking Glass Host")
+  set_target_properties(looking-glass-host PROPERTIES MACOSX_BUNDLE_GUI_IDENTIFIER "io.looking-glass.host")
 else()
   set_target_properties(looking-glass-host PROPERTIES LINK_FLAGS "-Wl,--gc-sections -z noexecstack")
 endif()
 
 install(TARGETS looking-glass-host
+	BUNDLE DESTINATION ${CMAKE_INSTALL_BINDIR}
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 	COMPONENT binary)
 
