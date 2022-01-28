@@ -20,6 +20,7 @@
 
 #include "common/time.h"
 #include "common/debug.h"
+#include "time.h"
 
 #include <errno.h>
 #include <signal.h>
@@ -27,14 +28,12 @@
 #include <string.h>
 #include <time.h>
 
-#include "time.h"
-
 struct LGTimer
 {
-  LGTimerFn   fn;
-  void      * udata;
-  timer_t     id;
-  bool        running;
+  LGTimerFn fn;
+  void *    udata;
+  timer_t   id;
+  bool      running;
 };
 
 static void TimerProc(union sigval arg)
@@ -48,8 +47,8 @@ static void TimerProc(union sigval arg)
   }
 }
 
-bool lgCreateTimer(const unsigned int intervalMS, LGTimerFn fn,
-    void * udata, LGTimer ** result)
+bool lgCreateTimer(const unsigned int intervalMS, LGTimerFn fn, void * udata,
+                   LGTimer ** result)
 {
   LGTimer * ret = malloc(sizeof(*ret));
 
@@ -63,29 +62,27 @@ bool lgCreateTimer(const unsigned int intervalMS, LGTimerFn fn,
   ret->udata   = udata;
   ret->running = true;
 
-  struct sigevent sev =
-  {
-    .sigev_notify = SIGEV_THREAD,
-    .sigev_notify_function = &TimerProc,
-    .sigev_value.sival_ptr = ret,
+  struct sigevent sev = {
+      .sigev_notify          = SIGEV_THREAD,
+      .sigev_notify_function = &TimerProc,
+      .sigev_value.sival_ptr = ret,
   };
 
-  if (timer_create(CLOCK_MONOTONIC, &sev, &ret->id))
+  // TODO(vially): This should use CLOCK_MONOTONIC (but it's not implemented currently)
+  if (timer_create(CLOCK_REALTIME, &sev, &ret->id))
   {
     DEBUG_ERROR("failed to create timer: %s", strerror(errno));
     free(ret);
     return false;
   }
 
-  struct timespec interval =
-  {
-    .tv_sec  = intervalMS / 1000,
-    .tv_nsec = (intervalMS % 1000) * 1000000,
+  struct timespec interval = {
+      .tv_sec  = intervalMS / 1000,
+      .tv_nsec = (intervalMS % 1000) * 1000000,
   };
-  struct itimerspec spec =
-  {
-    .it_interval = interval,
-    .it_value = interval,
+  struct itimerspec spec = {
+      .it_interval = interval,
+      .it_value    = interval,
   };
 
   if (timer_settime(ret->id, 0, &spec, NULL))
