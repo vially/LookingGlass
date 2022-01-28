@@ -120,7 +120,9 @@ static inline void display_stream_update(CGDisplayStreamFrameStatus status,
 
   size_t dropped_frames = CGDisplayStreamUpdateGetDropCount(update_ref);
   if (dropped_frames > 0)
+  {
     DEBUG_INFO("CoreGraphics: Dropped %zu frames", dropped_frames);
+  }
 }
 
 static bool coregraphics_init(void)
@@ -166,8 +168,10 @@ static bool coregraphics_init(void)
         display_stream_update(status, displayTime, frameSurface, updateRef);
       });
 
-  if (!this->stream) {
-    DEBUG_ERROR("Unable to create display stream. Make sure the screen recording permission has been granted");
+  if (!this->stream)
+  {
+    DEBUG_ERROR("Unable to create display stream. Make sure the screen "
+                "recording permission has been granted");
     return false;
   }
 
@@ -262,9 +266,13 @@ static CaptureResult coregraphics_getFrame(FrameBuffer *      frame,
   if (this->stop || !this->current)
     return CAPTURE_RESULT_REINIT;
 
+  IOSurfaceLock(this->current, 0, NULL);
+
   const int bpp       = 4;
   uint8_t * frameData = (uint8_t *)IOSurfaceGetBaseAddress(this->current);
   framebuffer_write(frame, frameData, height * this->width * bpp);
+
+  IOSurfaceUnlock(this->current, 0, NULL);
 
   return CAPTURE_RESULT_OK;
 }
